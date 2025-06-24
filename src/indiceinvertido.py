@@ -1,37 +1,103 @@
 import sqlite3
 import pandas as pd
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 import pickle
+import re
+from typing import Dict, List, Set
+from pathlib import Path
 
-nltk.download("punkt")
-nltk.download("punkt_tab")
-nltk.download("stopwords")
+class ConstrutorIndiceInvertido:
+    def __init__(self, db_path: str = "data/criptomoedas.db"):
+        self.db_path = db_path
+        self.indice = {}
+        
+        # Stopwords básicas em português
+        self.stopwords = {
+            'de', 'da', 'do', 'das', 'dos', 'a', 'o', 'as', 'os', 'e', 'em', 'para',
+            'com', 'por', 'um', 'uma', 'uns', 'umas', 'na', 'no', 'nas', 'nos'
+        }
+    
+    def carregar_dados(self) -> pd.DataFrame:
+        try:
+            conn = sqlite3.connect(self.db_path)
+            df = pd.read_sql_query("SELECT id, nome, simbolo FROM moedas", conn)
+            conn.close()
+            return df
+        except Exception as e:
+            print(f"Erro ao carregar dados: {e}")
+            return pd.DataFrame()
+    
+    def preprocessar_texto(self, texto: str) -> List[str]:
+        if not texto or pd.isna(texto):
+            return []
+        
+        # Converter para minúsculas e remover caracteres especiais
+        texto_limpo = re.sub(r'[^a-zA-Z0-9\s]', ' ', texto.lower())
+        
+        # Dividir em tokens
+        tokens = texto_limpo.split()
+        
+        # Filtrar tokens válidos
+        tokens_filtrados = [
+            token for token in tokens 
+            if len(token) > 1 and token not in self.stopwords and token.isalnum()
+        ]
+        
+        return tokens_filtrados
+    
+    def construir_indice(self) -> Dict[str, List[str]]:
+        df = self.carregar_dados()
+        
+        if df.empty:
+            print("Nenhum dado encontrado.")
+            return {}
+        
+        indice_temp = {}
+        
+        print(f"Processando {len(df)} registros...")
+        
+        for _, linha in df.iterrows():
+            # Processar nome e símbolo
+            termos_nome = self.preprocessar_texto(linha['nome'])
+            termos_simbolo = self.preprocessar_texto(linha['simbolo'])
+            
+            todos_termos = termos_nome + termos_simbolo
+            
+            # Adicionar ao índice
+            for termo in todos_termos:
+                if termo not in indice_temp:
+                    indice_temp[termo] = set()
+                indice_temp[termo].add(linha['id'])
+        
+        # Converter sets para listas
+        self.indice = {termo: list(ids) for termo, ids in indice_temp.items()}
+        
+        print(f"Índice criado com {len(self.indice)} termos únicos.")
+        return self.indice
+    
+    def salvar_indice(self, arquivo: str = "data/indice_invertido.pkl"):
+        # Criar diretório se não existir
+        Path(arquivo).parent.mkdir(exist_ok=True)
+        
+        try:
+            with open(arquivo, "wb") as f:
+                pickle.dump(self.indice, f, protocol=pickle.HIGHEST_PROTOCOL)
+            print(f"Índice salvo em: {arquivo}")
+            return True
+        except Exception as e:
+            print(f"Erro ao salvar índice: {e}")
+            return False
+    
+    def executar(self):
+        print("Construindo índice invertido...")
+        
+        if self.construir_indice():
+            if self.salvar_indice():
+                print("Processo concluído com sucesso.")
+            else:
+                print("Erro ao salvar o índice.")
+        else:
+            print("Erro ao construir o índice.")
 
-# === 1. Carregar dados do SQLite ===
-conn = sqlite3.connect('criptomoedas.db')
-df = pd.read_sql_query("SELECT id, nome, simbolo FROM moedas", conn)
-conn.close()
-
-# === 2. Pré-processamento e criação do índice ===
-indice_invertido = {}
-stopwords_pt = set(stopwords.words('portuguese'))
-
-for _, linha in df.iterrows():
-    termos = word_tokenize(linha['nome'].lower()) + word_tokenize(linha['simbolo'].lower())
-    termos = [t for t in termos if t.isalnum() and t not in stopwords_pt]
-
-    for termo in termos:
-        if termo not in indice_invertido:
-            indice_invertido[termo] = set()
-        indice_invertido[termo].add(linha['id'])
-
-# Converte sets para listas (para salvar no pickle)
-indice_invertido = {k: list(v) for k, v in indice_invertido.items()}
-
-# === 3. Salvar o índice invertido com Pickle ===
-with open("indice_invertido.pkl", "wb") as f:
-    pickle.dump(indice_invertido, f)
-
-print("✅ Índice invertido criado e salvo com sucesso.")
+if __name__ == "__main__":
+    construtor = ConstrutorIndiceInvertido()
+    construtor.executar()
