@@ -36,10 +36,10 @@ class ConstrutorIndiceInvertido:
         # Dividir em tokens
         tokens = texto_limpo.split()
         
-        # Filtrar tokens válidos
+        # Filtrar tokens válidos (incluindo símbolos curtos como BTC, ETH)
         tokens_filtrados = [
             token for token in tokens 
-            if len(token) > 1 and token not in self.stopwords and token.isalnum()
+            if len(token) >= 1 and token not in self.stopwords and token.isalnum()
         ]
         
         return tokens_filtrados
@@ -56,48 +56,17 @@ class ConstrutorIndiceInvertido:
         print(f"Processando {len(df)} registros...")
         
         for _, linha in df.iterrows():
-            # Processar nome e símbolo
+            # Processar nome, símbolo e ID
             termos_nome = self.preprocessar_texto(linha['nome'])
             termos_simbolo = self.preprocessar_texto(linha['simbolo'])
+            termos_id = self.preprocessar_texto(linha['id'])
             
-            todos_termos = termos_nome + termos_simbolo
+            # Adicionar símbolo completo (importante para símbolos como BTC, ETH)
+            if linha['simbolo'] and not pd.isna(linha['simbolo']):
+                termos_simbolo.append(linha['simbolo'].lower().strip())
+            
+            todos_termos = termos_nome + termos_simbolo + termos_id
             
             # Adicionar ao índice
             for termo in todos_termos:
-                if termo not in indice_temp:
-                    indice_temp[termo] = set()
-                indice_temp[termo].add(linha['id'])
-        
-        # Converter sets para listas
-        self.indice = {termo: list(ids) for termo, ids in indice_temp.items()}
-        
-        print(f"Índice criado com {len(self.indice)} termos únicos.")
-        return self.indice
-    
-    def salvar_indice(self, arquivo: str = "data/indice_invertido.pkl"):
-        # Criar diretório se não existir
-        Path(arquivo).parent.mkdir(exist_ok=True)
-        
-        try:
-            with open(arquivo, "wb") as f:
-                pickle.dump(self.indice, f, protocol=pickle.HIGHEST_PROTOCOL)
-            print(f"Índice salvo em: {arquivo}")
-            return True
-        except Exception as e:
-            print(f"Erro ao salvar índice: {e}")
-            return False
-    
-    def executar(self):
-        print("Construindo índice invertido...")
-        
-        if self.construir_indice():
-            if self.salvar_indice():
-                print("Processo concluído com sucesso.")
-            else:
-                print("Erro ao salvar o índice.")
-        else:
-            print("Erro ao construir o índice.")
-
-if __name__ == "__main__":
-    construtor = ConstrutorIndiceInvertido()
-    construtor.executar()
+                if termo not in indice_
