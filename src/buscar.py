@@ -6,7 +6,7 @@ from pathlib import Path
 class CryptocurrencySearchEngine:
     """
     Sistema de busca de criptomoedas com suporte a índice invertido.
-    Permite busca otimizada por termos ou busca tradicional por campos específicos.
+    Permite busca por ID, nome, símbolo ou busca inteligente por termos.
     """
     
     def __init__(self, db_path: str = "data/criptomoedas.db", index_path: str = "data/indice_invertido.pkl"):
@@ -95,7 +95,7 @@ class CryptocurrencySearchEngine:
         
         cursor = self.connection.cursor()
         
-        if field not in ["id", "nome"]:
+        if field not in ["id", "nome", "simbolo"]:
             return []
         
         query = f"SELECT * FROM moedas WHERE LOWER({field}) LIKE ? ORDER BY market_cap DESC"
@@ -205,13 +205,15 @@ class CryptocurrencySearchEngine:
                 print("1. Smart Search (uses inverted index)")
                 print("2. Search by ID")
                 print("3. Search by Name")
-                print("4. Exit")
-                max_option = 4
+                print("4. Search by Symbol")
+                print("5. Exit")
+                max_option = 5
             else:
                 print("1. Search by ID")
                 print("2. Search by Name")
-                print("3. Exit")
-                max_option = 3
+                print("3. Search by Symbol")
+                print("4. Exit")
+                max_option = 4
             
             try:
                 option = input(f"\nSelect option (1-{max_option}): ").strip()
@@ -238,18 +240,25 @@ class CryptocurrencySearchEngine:
                 # Traditional search
                 else:
                     if self.index_loaded:
-                        field = "id" if option == "2" else "nome"
+                        field_map = {"2": "id", "3": "nome", "4": "simbolo"}
+                        field = field_map.get(option)
                     else:
-                        field = "id" if option == "1" else "nome"
+                        field_map = {"1": "id", "2": "nome", "3": "simbolo"}
+                        field = field_map.get(option)
                     
-                    term = input(f"Enter {field}: ").strip()
+                    if not field:
+                        print("Invalid option.")
+                        continue
+                    
+                    field_display = "symbol" if field == "simbolo" else field
+                    term = input(f"Enter {field_display}: ").strip()
                     if term.lower() == "exit":
                         break
                     if not term:
                         print("Search term cannot be empty.")
                         continue
                     
-                    print(f"\nSearching for '{term}' by {field}...")
+                    print(f"\nSearching for '{term}' by {field_display}...")
                     results = self.search_traditional(field, term)
                 
                 # Display results and handle selection
