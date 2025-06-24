@@ -69,4 +69,40 @@ class ConstrutorIndiceInvertido:
             
             # Adicionar ao índice
             for termo in todos_termos:
-                if termo not in indice_
+                if termo not in indice_temp:
+                    indice_temp[termo] = set()
+                indice_temp[termo].add(linha['id'])
+        
+        # Converter sets para listas
+        self.indice = {termo: list(ids) for termo, ids in indice_temp.items()}
+        
+        print(f"Índice criado com {len(self.indice)} termos únicos.")
+        return self.indice
+    
+    def salvar_indice(self, arquivo: str = "data/indice_invertido.pkl"):
+        # Criar diretório se não existir
+        Path(arquivo).parent.mkdir(exist_ok=True)
+        
+        try:
+            with open(arquivo, "wb") as f:
+                pickle.dump(self.indice, f, protocol=pickle.HIGHEST_PROTOCOL)
+            print(f"Índice salvo em: {arquivo}")
+            return True
+        except Exception as e:
+            print(f"Erro ao salvar índice: {e}")
+            return False
+    
+    def executar(self):
+        print("Construindo índice invertido...")
+        
+        if self.construir_indice():
+            if self.salvar_indice():
+                print("Processo concluído com sucesso.")
+            else:
+                print("Erro ao salvar o índice.")
+        else:
+            print("Erro ao construir o índice.")
+
+if __name__ == "__main__":
+    construtor = ConstrutorIndiceInvertido()
+    construtor.executar()
