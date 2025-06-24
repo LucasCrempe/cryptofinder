@@ -5,8 +5,8 @@ from pathlib import Path
 
 class CryptocurrencySearchEngine:
     """
-    Sistema de busca de criptomoedas com suporte a índice invertido.
-    Permite busca por ID, nome, símbolo ou busca inteligente por termos.
+    Sistema de busca de criptomoedas que usa índice invertido automaticamente
+    quando disponível para otimizar todas as buscas.
     """
     
     def __init__(self, db_path: str = "data/criptomoedas.db", index_path: str = "data/indice_invertido.pkl"):
@@ -23,8 +23,7 @@ class CryptocurrencySearchEngine:
                 self.inverted_index = pickle.load(file)
             return True
         except FileNotFoundError:
-            print("Warning: Inverted index not found. Run 'python indiceinvertido.py' first.")
-            print("System will operate in traditional search mode.")
+            print("Warning: Inverted index not found. Using traditional search.")
             return False
         except Exception as error:
             print(f"Error loading inverted index: {error}")
@@ -45,7 +44,7 @@ class CryptocurrencySearchEngine:
             self.connection.close()
     
     def _search_ids_by_term(self, term: str) -> Set[str]:
-        """Busca IDs de criptomoedas usando o índice invertido."""
+        """Busca IDs usando o índice invertido."""
         if not self.inverted_index:
             return set()
         
@@ -58,13 +57,13 @@ class CryptocurrencySearchEngine:
         
         # Busca parcial
         for indexed_term, ids in self.inverted_index.items():
-            if normalized_term in indexed_term or indexed_term in normalized_term:
+            if normalized_term in indexed_term:
                 found_ids.update(ids)
         
         return found_ids
     
-    def search_with_index(self, term: str) -> List[Tuple]:
-        """Executa busca usando índice invertido."""
+    def _search_with_index(self, term: str) -> List[Tuple]:
+        """Busca usando índice invertido."""
         found_ids = self._search_ids_by_term(term)
         
         if not found_ids:
@@ -88,16 +87,12 @@ class CryptocurrencySearchEngine:
             print(f"Database query error: {error}")
             return []
     
-    def search_traditional(self, field: str, term: str) -> List[Tuple]:
-        """Executa busca tradicional por campo específico."""
+    def _search_traditional(self, field: str, term: str) -> List[Tuple]:
+        """Busca tradicional direta no banco."""
         if not self.connection and not self._connect_database():
             return []
         
         cursor = self.connection.cursor()
-        
-        if field not in ["id", "nome", "simbolo"]:
-            return []
-        
         query = f"SELECT * FROM moedas WHERE LOWER({field}) LIKE ? ORDER BY market_cap DESC"
         
         try:
@@ -105,6 +100,18 @@ class CryptocurrencySearchEngine:
             return cursor.fetchall()
         except sqlite3.Error:
             return []
+    
+    def search_by_field(self, field: str, term: str) -> List[Tuple]:
+        """
+        Busca por campo específico. Usa índice invertido se disponível,
+        senão usa busca tradicional.
+        """
+        # Se temos índice invertido, usar para busca otimizada
+        if self.index_loaded:
+            return self._search_with_index(term)
+        else:
+            # Fallback para busca tradicional
+            return self._search_traditional(field, term)
     
     def format_currency_value(self, value, value_type: str) -> str:
         """Formata valores monetários para exibição."""
@@ -192,74 +199,43 @@ class CryptocurrencySearchEngine:
         print("=" * 50)
         
         if self.index_loaded:
-            print(f"Inverted index loaded: {len(self.inverted_index)} unique terms")
+            print("Search optimization: Inverted index enabled")
         else:
-            print("Operating in traditional search mode")
+            print("Search optimization: Traditional mode")
         
         print("Type 'exit' to quit\n")
         
         while True:
             print("\nSearch Options:")
-            
-            if self.index_loaded:
-                print("1. Smart Search (uses inverted index)")
-                print("2. Search by ID")
-                print("3. Search by Name")
-                print("4. Search by Symbol")
-                print("5. Exit")
-                max_option = 5
-            else:
-                print("1. Search by ID")
-                print("2. Search by Name")
-                print("3. Search by Symbol")
-                print("4. Exit")
-                max_option = 4
+            print("1. Search by ID")
+            print("2. Search by Name")
+            print("3. Search by Symbol")
+            print("4. Exit")
             
             try:
-                option = input(f"\nSelect option (1-{max_option}): ").strip()
+                option = input("\nSelect option (1-4): ").strip()
                 
-                if option == str(max_option) or option.lower() == "exit":
+                if option == "4" or option.lower() == "exit":
                     break
                 
-                if option not in [str(i) for i in range(1, max_option + 1)]:
+                field_map = {"1": "id", "2": "nome", "3": "simbolo"}
+                field = field_map.get(option)
+                
+                if not field:
                     print("Invalid option.")
                     continue
                 
-                # Smart search with inverted index
-                if option == "1" and self.index_loaded:
-                    term = input("Enter search term: ").strip()
-                    if term.lower() == "exit":
-                        break
-                    if not term:
-                        print("Search term cannot be empty.")
-                        continue
-                    
-                    print(f"\nSearching for '{term}' using inverted index...")
-                    results = self.search_with_index(term)
+                field_display = "symbol" if field == "simbolo" else field
+                term = input(f"Enter {field_display}: ").strip()
                 
-                # Traditional search
-                else:
-                    if self.index_loaded:
-                        field_map = {"2": "id", "3": "nome", "4": "simbolo"}
-                        field = field_map.get(option)
-                    else:
-                        field_map = {"1": "id", "2": "nome", "3": "simbolo"}
-                        field = field_map.get(option)
-                    
-                    if not field:
-                        print("Invalid option.")
-                        continue
-                    
-                    field_display = "symbol" if field == "simbolo" else field
-                    term = input(f"Enter {field_display}: ").strip()
-                    if term.lower() == "exit":
-                        break
-                    if not term:
-                        print("Search term cannot be empty.")
-                        continue
-                    
-                    print(f"\nSearching for '{term}' by {field_display}...")
-                    results = self.search_traditional(field, term)
+                if term.lower() == "exit":
+                    break
+                if not term:
+                    print("Search term cannot be empty.")
+                    continue
+                
+                print(f"\nSearching for '{term}' by {field_display}...")
+                results = self.search_by_field(field, term)
                 
                 # Display results and handle selection
                 selected_crypto = self.display_search_results(results)
