@@ -17,7 +17,8 @@ class CryptoSearchEngine:
             with open(self.index_path, "rb") as file:
                 self.inverted_index = pickle.load(file)
             return True
-        except:
+        except Exception as e:
+            print(f"Error loading inverted index: {e}")
             return False
     
     def _search_ids_by_term(self, term: str) -> Set[str]:
@@ -27,12 +28,15 @@ class CryptoSearchEngine:
         normalized_term = term.lower().strip()
         found_ids = set()
         
+        # Busca exata primeiro
         if normalized_term in self.inverted_index:
             found_ids.update(self.inverted_index[normalized_term])
         
-        for indexed_term, ids in self.inverted_index.items():
-            if normalized_term in indexed_term:
-                found_ids.update(ids)
+        # Busca parcial apenas se não encontrou resultado exato
+        if not found_ids:
+            for indexed_term, ids in self.inverted_index.items():
+                if normalized_term in indexed_term:
+                    found_ids.update(ids)
         
         return found_ids
     
@@ -45,7 +49,8 @@ class CryptoSearchEngine:
             results = cursor.fetchall()
             conn.close()
             return results
-        except:
+        except Exception as e:
+            print(f"Error in ID search: {e}")
             return []
     
     def search_by_name(self, term: str) -> List[Tuple]:
@@ -57,7 +62,8 @@ class CryptoSearchEngine:
             results = cursor.fetchall()
             conn.close()
             return results
-        except:
+        except Exception as e:
+            print(f"Error in name search: {e}")
             return []
     
     def search_by_symbol(self, term: str) -> List[Tuple]:
@@ -69,27 +75,31 @@ class CryptoSearchEngine:
             results = cursor.fetchall()
             conn.close()
             return results
-        except:
+        except Exception as e:
+            print(f"Error in symbol search: {e}")
             return []
     
     def search_with_inverted_index(self, term: str) -> List[Tuple]:
-        if self.index_loaded:
-            found_ids = self._search_ids_by_term(term)
-            if not found_ids:
-                return []
-            
-            try:
-                conn = sqlite3.connect(self.db_path)
-                cursor = conn.cursor()
-                placeholders = ','.join(['?' for _ in found_ids])
-                query = f"SELECT * FROM moedas WHERE id IN ({placeholders}) ORDER BY market_cap DESC"
-                cursor.execute(query, list(found_ids))
-                results = cursor.fetchall()
-                conn.close()
-                return results
-            except:
-                return []
-        return []
+        if not self.index_loaded:
+            print("Inverted index not loaded, using name search as fallback")
+            return self.search_by_name(term)
+        
+        found_ids = self._search_ids_by_term(term)
+        if not found_ids:
+            return []
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            placeholders = ','.join(['?' for _ in found_ids])
+            query = f"SELECT * FROM moedas WHERE id IN ({placeholders}) ORDER BY market_cap DESC"
+            cursor.execute(query, list(found_ids))
+            results = cursor.fetchall()
+            conn.close()
+            return results
+        except Exception as e:
+            print(f"Error in inverted index search: {e}")
+            return []
 
 search_engine = CryptoSearchEngine()
 
@@ -266,31 +276,40 @@ def SearchInterface():
     results, set_results = hooks.use_state([])
     loading, set_loading = hooks.use_state(False)
     show_about, set_show_about = hooks.use_state(False)
+    search_performed, set_search_performed = hooks.use_state(False)
     
     def handle_search():
         if not search_term.strip():
             set_results([])
+            set_search_performed(False)
             return
         
         set_loading(True)
+        set_search_performed(True)
         
-        if search_type == "id":
-            search_results = search_engine.search_by_id(search_term)
-        elif search_type == "name":
-            search_results = search_engine.search_by_name(search_term)
-        elif search_type == "symbol":
-            search_results = search_engine.search_by_symbol(search_term)
-        else:  # inverted_index
-            search_results = search_engine.search_with_inverted_index(search_term)
-        
-        set_results(search_results)
-        set_loading(False)
+        try:
+            if search_type == "id":
+                search_results = search_engine.search_by_id(search_term)
+            elif search_type == "name":
+                search_results = search_engine.search_by_name(search_term)
+            elif search_type == "symbol":
+                search_results = search_engine.search_by_symbol(search_term)
+            else:  # inverted_index
+                search_results = search_engine.search_with_inverted_index(search_term)
+            
+            set_results(search_results)
+        except Exception as e:
+            print(f"Search error: {e}")
+            set_results([])
+        finally:
+            set_loading(False)
     
     def handle_input_change(event):
         value = event["target"]["value"]
         set_search_term(value)
         if not value.strip():
             set_results([])
+            set_search_performed(False)
     
     if show_about:
         return AboutPage(lambda: set_show_about(False))
@@ -384,7 +403,7 @@ def SearchInterface():
                     {
                         "style": {
                             "padding": "2.5rem",
-                            "border-bottom": "1px solid rgba(0,0,0,0.05)" if results else "none"
+                            "border-bottom": "1px solid rgba(0,0,0,0.05)" if results or (search_performed and not loading) else "none"
                         }
                     },
                     
@@ -423,7 +442,7 @@ def SearchInterface():
                             "on_input": handle_input_change,
                             "on_key_down": lambda event: handle_search() if event["key"] == "Enter" else None,
                             "style": {
-                                "width": "100%",
+                                "width": "calc(100% - 120px)",  # Ajustado para dar espaço ao botão
                                 "padding": "1.2rem 1.5rem 1.2rem 3.5rem",
                                 "font-size": "1.1rem",
                                 "border": "2px solid #e2e8f0",
@@ -466,7 +485,8 @@ def SearchInterface():
                                     "font-weight": "600",
                                     "font-family": "'Inter', sans-serif",
                                     "transition": "all 0.3s ease",
-                                    "opacity": "0.8" if loading else "1"
+                                    "opacity": "0.8" if loading else "1",
+                                    "width": "100px"  # Largura fixa para o botão
                                 }
                             },
                             "⏳" if loading else "Search"
@@ -475,7 +495,7 @@ def SearchInterface():
                 ),
                 
                 # Results
-                ResultsSection(results, loading, search_type)
+                ResultsSection(results, loading, search_type, search_performed, search_term)
             ),
             
             # About Button
@@ -509,7 +529,7 @@ def SearchInterface():
     )
 
 @component
-def ResultsSection(results, loading, search_type):
+def ResultsSection(results, loading, search_type, search_performed, search_term):
     if loading:
         return html.div(
             {
@@ -548,6 +568,93 @@ def ResultsSection(results, loading, search_type):
                     100% { transform: rotate(360deg); }
                 }
             """)
+        )
+    
+    # Show "No results found" message if search was performed but no results
+    if search_performed and not results and not loading:
+        return html.div(
+            {
+                "style": {
+                    "padding": "4rem",
+                    "text-align": "center"
+                }
+            },
+            html.div(
+                {
+                    "style": {
+                        "font-size": "4rem",
+                        "margin-bottom": "1.5rem",
+                        "opacity": "0.5"
+                    }
+                },
+                "🔍"
+            ),
+            html.h3(
+                {
+                    "style": {
+                        "color": "#1e293b",
+                        "font-size": "1.5rem",
+                        "font-weight": "600",
+                        "margin-bottom": "1rem",
+                        "font-family": "'Inter', sans-serif"
+                    }
+                },
+                "No Results Found"
+            ),
+            html.p(
+                {
+                    "style": {
+                        "color": "#64748b",
+                        "font-size": "1.1rem",
+                        "margin-bottom": "1.5rem",
+                        "font-family": "'Inter', sans-serif",
+                        "max-width": "500px",
+                        "margin": "0 auto 1.5rem auto",
+                        "line-height": "1.6"
+                    }
+                },
+                f"We couldn't find any cryptocurrencies matching \"{search_term}\" using {get_search_type_label(search_type).lower()}."
+            ),
+            html.div(
+                {
+                    "style": {
+                        "background": "#f8fafc",
+                        "border": "1px solid #e2e8f0",
+                        "border-radius": "12px",
+                        "padding": "1.5rem",
+                        "max-width": "400px",
+                        "margin": "0 auto"
+                    }
+                },
+                html.h4(
+                    {
+                        "style": {
+                            "color": "#1e293b",
+                            "font-size": "1rem",
+                            "font-weight": "600",
+                            "margin-bottom": "0.8rem",
+                            "font-family": "'Inter', sans-serif"
+                        }
+                    },
+                    "Try these suggestions:"
+                ),
+                html.ul(
+                    {
+                        "style": {
+                            "color": "#64748b",
+                            "font-size": "0.9rem",
+                            "margin": "0",
+                            "padding-left": "1.2rem",
+                            "font-family": "'Inter', sans-serif",
+                            "line-height": "1.6"
+                        }
+                    },
+                    html.li("Check your spelling"),
+                    html.li("Try different search terms"),
+                    html.li("Use a different search type"),
+                    html.li("Try searching for popular coins like Bitcoin or Ethereum")
+                )
+            )
         )
     
     if not results:
@@ -868,7 +975,7 @@ def AboutPage(on_back):
                         "line-height": "1.8",
                         "text-align": "center",
                         "max-width": "600px",
-                        "margin": "0 auto"
+                        "margin": "0 auto 3rem auto"
                     }
                 },
                 "Cryptocurrency search engine using inverted indexes for efficient data retrieval. Collects real-time crypto data from CoinGecko API and organizes it with Python."
