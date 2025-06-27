@@ -328,7 +328,9 @@ def SearchInterface():
             "style": {
                 "min-height": "100vh",
                 "background": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                "font-family": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+                "font-family": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+                "margin": "0",
+                "padding": "0"
             }
         },
         # Google Fonts Import
@@ -348,7 +350,7 @@ def SearchInterface():
                     "margin": "0 auto"
                 }
             },
-            
+
             # Hero Section
             html.div(
                 {
@@ -442,7 +444,7 @@ def SearchInterface():
                             "on_input": handle_input_change,
                             "on_key_down": lambda event: handle_search() if event["key"] == "Enter" else None,
                             "style": {
-                                "width": "calc(100% - 120px)",  # Ajustado para dar espaço ao botão
+                                "width": "calc(100% - 1px)",  
                                 "padding": "1.2rem 1.5rem 1.2rem 3.5rem",
                                 "font-size": "1.1rem",
                                 "border": "2px solid #e2e8f0",
@@ -473,7 +475,7 @@ def SearchInterface():
                                 "disabled": loading,
                                 "style": {
                                     "position": "absolute",
-                                    "right": "8px",
+                                    "right": "1%",
                                     "top": "50%",
                                     "transform": "translateY(-50%)",
                                     "background": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -486,7 +488,7 @@ def SearchInterface():
                                     "font-family": "'Inter', sans-serif",
                                     "transition": "all 0.3s ease",
                                     "opacity": "0.8" if loading else "1",
-                                    "width": "100px"  # Largura fixa para o botão
+                                    "width": "100px"
                                 }
                             },
                             "⏳" if loading else "Search"
@@ -922,7 +924,8 @@ def AboutPage(on_back):
                 "min-height": "100vh",
                 "background": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                 "font-family": "'Inter', sans-serif",
-                "padding": "2rem"
+                "padding": "2rem",
+                "margin": "0"
             }
         },
         html.div(
@@ -1043,7 +1046,28 @@ def FeatureCard(icon, title, description):
 
 @component
 def App():
-    return SearchInterface()
+    return html.div(
+        {
+            "style": {
+                "margin": "0",
+                "padding": "0",
+                "box-sizing": "border-box"
+            }
+        },
+        html.style("""
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow-x: hidden !important;
+            }
+        """),
+        SearchInterface()
+    )
 
 app = FastAPI()
 configure(app, App)
