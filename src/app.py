@@ -6,7 +6,7 @@ import pickle
 from typing import List, Tuple, Set
 
 class CryptoSearchEngine:
-    def __init__(self, db_path: str = "data/criptomoedas.db", index_path: str = "src/indice_invertido.py"):
+    def __init__(self, db_path: str = "data/criptomoedas.db", index_path: str = "src/indiceinvertido.py"):
         self.db_path = db_path
         self.index_path = index_path
         self.inverted_index = {}
