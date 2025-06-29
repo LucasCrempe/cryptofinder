@@ -5,8 +5,9 @@ import sqlite3
 import pickle
 from typing import List, Tuple, Set
 
+
 class CryptoSearchEngine:
-    def __init__(self, db_path: str = "data/criptomoedas.db", index_path: str = "src/indiceinvertido.py"):
+    def __init__(self, db_path: str = "data/criptomoedas.db", index_path: str = "data/indice_invertido.pkl"):
         self.db_path = db_path
         self.index_path = index_path
         self.inverted_index = {}
@@ -17,6 +18,10 @@ class CryptoSearchEngine:
             with open(self.index_path, "rb") as file:
                 self.inverted_index = pickle.load(file)
             return True
+        except FileNotFoundError:
+            print(f"Arquivo de índice não encontrado: {self.index_path}")
+            print("Execute o indiceinvertido.py primeiro para gerar o índice.")
+            return False
         except Exception as e:
             print(f"Error loading inverted index: {e}")
             return False
