@@ -5,7 +5,6 @@ import sqlite3
 import pickle
 from typing import List, Tuple, Set
 
-
 class CryptoSearchEngine:
     def __init__(self, db_path: str = "data/criptomoedas.db", index_path: str = "data/indice_invertido.pkl"):
         self.db_path = db_path
@@ -109,7 +108,7 @@ class CryptoSearchEngine:
 search_engine = CryptoSearchEngine()
 
 @component
-def Header():
+def Header(set_show_about=None):
     return html.header(
         {
             "style": {
@@ -182,6 +181,7 @@ def Header():
             ),
             html.a(
                 {
+                    "on_click": lambda _: set_show_about(True) if set_show_about else None,
                     "style": {
                         "color": "rgba(255, 255, 255, 0.7)",
                         "text-decoration": "none",
@@ -344,7 +344,7 @@ def SearchInterface():
             "rel": "stylesheet"
         }),
         
-        Header(),
+        Header(set_show_about),
         
         # Main Content
         html.main(
