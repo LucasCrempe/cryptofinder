@@ -4,10 +4,6 @@ from typing import List, Tuple, Set, Optional
 from pathlib import Path
 
 class CryptocurrencySearchEngine:
-    """
-    Sistema de busca de criptomoedas que usa índice invertido automaticamente
-    quando disponível para otimizar todas as buscas.
-    """
     
     def __init__(self, db_path: str = "data/criptomoedas.db", index_path: str = "data/indice_invertido.pkl"):
         self.db_path = db_path
@@ -17,7 +13,6 @@ class CryptocurrencySearchEngine:
         self.index_loaded = self._load_inverted_index()
         
     def _load_inverted_index(self) -> bool:
-        """Carrega o índice invertido do arquivo pickle."""
         try:
             with open(self.index_path, "rb") as file:
                 self.inverted_index = pickle.load(file)
@@ -30,7 +25,6 @@ class CryptocurrencySearchEngine:
             return False
     
     def _connect_database(self) -> bool:
-        """Estabelece conexão com o banco de dados."""
         try:
             self.connection = sqlite3.connect(self.db_path)
             return True
@@ -39,23 +33,19 @@ class CryptocurrencySearchEngine:
             return False
     
     def _close_connection(self):
-        """Fecha a conexão com o banco de dados."""
         if self.connection:
             self.connection.close()
     
     def _search_ids_by_term(self, term: str) -> Set[str]:
-        """Busca IDs usando o índice invertido."""
         if not self.inverted_index:
             return set()
         
         normalized_term = term.lower().strip()
         found_ids = set()
         
-        # Busca exata
         if normalized_term in self.inverted_index:
             found_ids.update(self.inverted_index[normalized_term])
         
-        # Busca parcial
         for indexed_term, ids in self.inverted_index.items():
             if normalized_term in indexed_term:
                 found_ids.update(ids)
@@ -88,7 +78,6 @@ class CryptocurrencySearchEngine:
             return []
     
     def _search_traditional(self, field: str, term: str) -> List[Tuple]:
-        """Busca tradicional direta no banco."""
         if not self.connection and not self._connect_database():
             return []
         
@@ -102,10 +91,6 @@ class CryptocurrencySearchEngine:
             return []
     
     def search_by_field(self, field: str, term: str) -> List[Tuple]:
-        """
-        Busca por campo específico. Usa índice invertido se disponível,
-        senão usa busca tradicional.
-        """
         # Se temos índice invertido, usar para busca otimizada
         if self.index_loaded:
             return self._search_with_index(term)
@@ -114,7 +99,6 @@ class CryptocurrencySearchEngine:
             return self._search_traditional(field, term)
     
     def format_currency_value(self, value, value_type: str) -> str:
-        """Formata valores monetários para exibição."""
         if value is None:
             return "N/A"
         
@@ -136,7 +120,6 @@ class CryptocurrencySearchEngine:
         return str(value)
     
     def display_cryptocurrency_details(self, crypto_data: Tuple):
-        """Exibe detalhes completos de uma criptomoeda."""
         separator = "=" * 60
         print(f"\n{separator}")
         print("CRYPTOCURRENCY DETAILS")
@@ -151,7 +134,6 @@ class CryptocurrencySearchEngine:
         print(separator)
     
     def display_search_results(self, results: List[Tuple], max_display: int = 15):
-        """Exibe lista de resultados da busca."""
         if not results:
             print("No cryptocurrencies found.")
             return None
@@ -171,7 +153,6 @@ class CryptocurrencySearchEngine:
         return self._get_user_selection(results, display_count)
     
     def _get_user_selection(self, results: List[Tuple], display_count: int) -> Optional[Tuple]:
-        """Obtém seleção do usuário para ver detalhes."""
         try:
             selection = input("\nEnter number to view details (Enter for new search): ").strip()
             
@@ -190,7 +171,6 @@ class CryptocurrencySearchEngine:
             return None
     
     def run_search_interface(self):
-        """Interface principal do sistema de busca."""
         if not self._connect_database():
             print("Failed to connect to database.")
             return
@@ -252,7 +232,6 @@ class CryptocurrencySearchEngine:
         print("\nSearch session ended.")
 
 def main():
-    """Função principal."""
     search_engine = CryptocurrencySearchEngine()
     search_engine.run_search_interface()
 
