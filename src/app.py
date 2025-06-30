@@ -32,11 +32,9 @@ class CryptoSearchEngine:
         normalized_term = term.lower().strip()
         found_ids = set()
         
-        # Busca exata primeiro
         if normalized_term in self.inverted_index:
             found_ids.update(self.inverted_index[normalized_term])
         
-        # Busca parcial apenas se não encontrou resultado exato
         if not found_ids:
             for indexed_term, ids in self.inverted_index.items():
                 if normalized_term in indexed_term:
@@ -319,7 +317,6 @@ def SearchInterface():
     if show_about:
         return AboutPage(lambda: set_show_about(False))
     
-    # Definir os tipos de busca e labels
     search_types = ["inverted_index", "id", "name", "symbol"]
     search_labels = {
         "inverted_index": "Smart Search",
@@ -338,7 +335,6 @@ def SearchInterface():
                 "padding": "0"
             }
         },
-        # Google Fonts Import
         html.link({
             "href": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap",
             "rel": "stylesheet"
@@ -346,7 +342,6 @@ def SearchInterface():
         
         Header(set_show_about),
         
-        # Main Content
         html.main(
             {
                 "style": {
@@ -356,7 +351,6 @@ def SearchInterface():
                 }
             },
 
-            # Hero Section
             html.div(
                 {
                     "style": {
@@ -501,11 +495,9 @@ def SearchInterface():
                     )
                 ),
                 
-                # Results
                 ResultsSection(results, loading, search_type, search_performed, search_term)
             ),
             
-            # About Button
             html.div(
                 {
                     "style": {
@@ -577,7 +569,6 @@ def ResultsSection(results, loading, search_type, search_performed, search_term)
             """)
         )
     
-    # Show "No results found" message if search was performed but no results
     if search_performed and not results and not loading:
         return html.div(
             {
@@ -713,7 +704,6 @@ def ResultsSection(results, loading, search_type, search_performed, search_term)
 
 @component
 def CryptoCard(crypto):
-    # crypto = (id, nome, simbolo, preco_usd, variacao_24h, market_cap, ultima_atualizacao)
     nome = crypto[1] or "N/A"
     simbolo = (crypto[2] or "").upper()
     crypto_id = crypto[0] or "N/A"
@@ -743,7 +733,6 @@ def CryptoCard(crypto):
                 }
             },
             
-            # Left side - Main info
             html.div(
                 html.div(
                     {
@@ -820,7 +809,6 @@ def CryptoCard(crypto):
                     )
                 ),
                 
-                # Additional info
                 html.div(
                     {
                         "style": {
@@ -883,7 +871,6 @@ def CryptoCard(crypto):
                 )
             ),
             
-            # Right side - Price info
             html.div(
                 {
                     "style": {
