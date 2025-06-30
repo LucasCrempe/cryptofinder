@@ -11,7 +11,6 @@ class ColetorDadosCripto:
         self.arquivo_progresso = "data/ultima_pagina.txt"
         self.conn = None
         
-        # Criar diretório data se não existir
         Path(self.db_path).parent.mkdir(exist_ok=True)
     
     def carregar_pagina_inicial(self) -> int:
@@ -123,7 +122,7 @@ class ColetorDadosCripto:
                 
                 pagina += 1
                 self.salvar_progresso(pagina)
-                time.sleep(3)  # Rate limiting
+                time.sleep(3)  
                 
             except requests.RequestException as e:
                 print(f"Erro na requisição: {e}")
